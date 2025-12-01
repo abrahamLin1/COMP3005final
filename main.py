@@ -1,6 +1,9 @@
 from database import Base, engine, SessionLocal
 from models import Member, Class, Trainer, Room, Booking, Equipment
-
+import functions.admin_functions as a_f
+import functions.member_functions as m_f
+import functions.trainer_functions as t_f
+import datetime
 
 def init_db():
     print("Creating database tables...")
@@ -14,8 +17,17 @@ def seed_data():
     # ---------------------------
     # Create Rooms
     # ---------------------------
-    room1 = Room(R_ID=1)
-    room2 = Room(R_ID=2)
+    room1 = Room(room_id=1)
+    room2 = Room(room_id=2)
+
+    # ---------------------------
+    # Create Trainers
+    # ---------------------------
+    trainer1 = Trainer(trainer_id=201, work_hours=40)
+    trainer2 = Trainer(trainer_id=202, work_hours=35)
+
+    session.add_all([trainer1, trainer2])
+    session.commit()
 
     session.add_all([room1, room2])
     session.commit()
@@ -23,27 +35,18 @@ def seed_data():
     # ---------------------------
     # Create Classes
     # ---------------------------
-    class1 = Class(C_ID=101, SIZE=10, MAX_SIZE=20, room=room1)
-    class2 = Class(C_ID=102, SIZE=5, MAX_SIZE=10, room=room2)
+    class1 = Class(class_id=101, size=10, max_size=20, trainer=trainer1, room=room1)
+    class2 = Class(class_id=102, size=5, max_size=10, trainer=trainer2, room=room2)
 
     session.add_all([class1, class2])
     session.commit()
 
     # ---------------------------
-    # Create Trainers (1-to-1)
+    # Create Members
     # ---------------------------
-    trainer1 = Trainer(T_ID=201, WORK_HOURS=40, class_=class1)
-    trainer2 = Trainer(T_ID=202, WORK_HOURS=35, class_=class2)
-
-    session.add_all([trainer1, trainer2])
-    session.commit()
-
-    # ---------------------------
-    # Create Members (many-to-one)
-    # ---------------------------
-    member1 = Member(M_ID=301, GOAL="Lose Weight", HEALTH_METRIC="Good", attending_class=class1)
-    member2 = Member(M_ID=302, GOAL="Build Muscle", HEALTH_METRIC="Excellent", attending_class=class1)
-    member3 = Member(M_ID=303, GOAL="Endurance", HEALTH_METRIC="Fair", attending_class=class2)
+    member1 = Member(member_id=301, goal="Lose Weight", health_metric="Good", attending_class=class1)
+    member2 = Member(member_id=302, goal="Build Muscle", health_metric="Excellent", attending_class=class1)
+    member3 = Member(member_id=303, goal="Endurance", health_metric="Fair", attending_class=class2)
 
     session.add_all([member1, member2, member3])
     session.commit()
@@ -51,9 +54,9 @@ def seed_data():
     # ---------------------------
     # Create Bookings (room → many bookings)
     # ---------------------------
-    booking1 = Booking(TIME=9, room=room1)
-    booking2 = Booking(TIME=14, room=room1)
-    booking3 = Booking(TIME=11, room=room2)
+    booking1 = Booking(TIME=datetime.date(2025,12,11), classes = class1, room=room1)
+    booking2 = Booking(TIME=datetime.date(2025,12,12), classes = class1, room=room1)
+    booking3 = Booking(TIME=datetime.date(2025,12,13), classes = class2, room=room2)
 
     session.add_all([booking1, booking2, booking3])
     session.commit()
@@ -61,9 +64,9 @@ def seed_data():
     # ---------------------------
     # Create Equipment (room → many equipment pieces)
     # ---------------------------
-    eq1 = Equipment(TYPE="Treadmill", STATUS="Working", COUNT=5, room=room1)
-    eq2 = Equipment(TYPE="Dumbbells", STATUS="Good", COUNT=20, room=room1)
-    eq3 = Equipment(TYPE="Bike", STATUS="Needs Service", COUNT=3, room=room2)
+    eq1 = Equipment(equipment_id = 1, type="Treadmill", status="Working", room=room1)
+    eq2 = Equipment(equipment_id = 2, type="Dumbbells", status="Good",  room=room1)
+    eq3 = Equipment(equipment_id = 3, type="Bike", status="Needs Service", room=room2)
 
     session.add_all([eq1, eq2, eq3])
     session.commit()
@@ -77,28 +80,40 @@ def print_summary():
 
     print("\n=== Classes and Members ===")
     for c in session.query(Class).all():
-        print(f"Class {c.C_ID} in Room {c.R_ID} has members:")
+        print(f"Class {c.class_id} in Room {c.room_id} has members:")
         for m in c.members:
-            print(f" - {m.M_ID}: {m.GOAL}")
+            print(f" - {m.member_id}: {m.goal}")
 
     print("\n=== Trainers (One-to-One) ===")
     for t in session.query(Trainer).all():
-        print(f"Trainer {t.T_ID} teaches Class {t.C_ID}")
+        print(f"Trainer {t.trainer_id} teaches Classes: {[cls.class_id for cls in t.classes]}")
 
     print("\n=== Rooms, Bookings, and Equipment ===")
     for r in session.query(Room).all():
-        print(f"Room {r.R_ID}:")
+        print(f"Room {r.room_id}:")
         print("  Bookings:")
         for b in r.bookings:
-            print(f"   - Time {b.TIME}")
+            print(f"   - Time {b.TIME}, Class {b.class_id}, Room {b.room_id}")
         print("  Equipment:")
         for e in r.equipment:
-            print(f"   - {e.TYPE} ({e.COUNT}) Status: {e.STATUS}")
+            print(f"   -ID: {e.equipment_id} {e.type} Status: {e.status}")
 
     session.close()
 
+def print_dictionary(result):
+    print("Assigned classes:")
+    for item in result:
+        print(f"    -Class ID: {item['class_id']}, Room ID: {item['room_id']}")
 
 if __name__ == "__main__":
-    init_db()
-    #seed_data()
-    print_summary()
+    try:
+        init_db()
+        #seed_data() # Only need to run this once when database is empty
+        #a_f.book_room_for_class(session=SessionLocal(), class_id=101, room_id=2, booking_time=datetime.date(2021, 12, 30))
+        #a_f.log_equipment_issue(session=SessionLocal(), equipment_id=1, status="Broken")
+        #print_dictionary(t_f.view_assigned_classes(session=SessionLocal(), trainer_id=202))
+        #print(t_f.lookup_member(session=SessionLocal(), member_id=302))
+        #print_summary()
+
+    except ValueError as e:
+        print(e)

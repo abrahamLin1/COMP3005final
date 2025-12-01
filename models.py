@@ -22,12 +22,12 @@ from database import Base, engine
 class Member(Base):
     __tablename__ = "members"
 
-    M_ID = Column(Integer, primary_key=True)
-    GOAL = Column(String)
-    HEALTH_METRIC = Column(String)
+    member_id = Column(Integer, primary_key=True)
+    goal = Column(String)
+    health_metric = Column(String)
 
     # Member attends Class (many-to-one)
-    C_ID = Column(Integer, ForeignKey("classes.C_ID"))
+    class_id = Column(Integer, ForeignKey("classes.class_id"))
     attending_class = relationship("Class", back_populates="members")
 
 
@@ -37,19 +37,22 @@ class Member(Base):
 class Class(Base):
     __tablename__ = "classes"
 
-    C_ID = Column(Integer, primary_key=True)
-    SIZE = Column(Integer)
-    MAX_SIZE = Column(Integer)
+    class_id = Column(Integer, primary_key=True)
+    size = Column(Integer)
+    max_size = Column(Integer)
 
     # Member attends Class (one-to-many)
     members = relationship("Member", back_populates="attending_class")
 
-    # Trainer teaches Class (one-to-one)
-    trainer = relationship("Trainer", back_populates="class_", uselist=False)
+    # Trainer teaches Class (one-to-many)
+    trainer_id = Column(Integer, ForeignKey("trainers.trainer_id"), nullable=False)
+    trainer = relationship("Trainer", back_populates="classes")
 
     # Classes are in Rooms (many-to-one)
-    R_ID = Column(Integer, ForeignKey("rooms.R_ID"))
+    room_id = Column(Integer, ForeignKey("rooms.room_id"))
     room = relationship("Room", back_populates="classes")
+
+    bookings = relationship("Booking", back_populates="classes")
 
 
 # -------------------
@@ -58,12 +61,11 @@ class Class(Base):
 class Trainer(Base):
     __tablename__ = "trainers"
 
-    T_ID = Column(Integer, primary_key=True)
-    WORK_HOURS = Column(Integer)
+    trainer_id = Column(Integer, primary_key=True)
+    work_hours = Column(Integer)
 
-    # One-to-one with Class
-    C_ID = Column(Integer, ForeignKey("classes.C_ID"), unique=True)
-    class_ = relationship("Class", back_populates="trainer")
+    # One-to-Many: Trainer → Classes
+    classes = relationship("Class", back_populates="trainer")
 
 
 # -------------------
@@ -72,7 +74,7 @@ class Trainer(Base):
 class Room(Base):
     __tablename__ = "rooms"
 
-    R_ID = Column(Integer, primary_key=True)
+    room_id = Column(Integer, primary_key=True)
 
     # Classes are in rooms (one-to-many)
     classes = relationship("Class", back_populates="room")
@@ -90,11 +92,30 @@ class Room(Base):
 class Booking(Base):
     __tablename__ = "bookings"
 
-    id = Column(Integer, primary_key=True)
-    TIME = Column(Integer)
+    booking_id = Column(Integer, primary_key=True)
+    TIME = Column(DateTime)
 
-    R_ID = Column(Integer, ForeignKey("rooms.R_ID"))
+    room_id = Column(Integer, ForeignKey("rooms.room_id"))
+    class_id = Column(Integer, ForeignKey("classes.class_id"))
     room = relationship("Room", back_populates="bookings")
+    classes = relationship("Class", back_populates="bookings")
+    # One-to-many: booking → registrations
+    registrations = relationship("Registration", back_populates="booking", cascade="all, delete-orphan")
+
+# -------------------
+# Register
+# -------------------
+class Registration(Base):
+    __tablename__ = "registrations"
+
+    registration_id = Column(Integer, primary_key=True)
+
+    # Many-to-one FK → Booking
+    booking_id = Column(Integer, ForeignKey("bookings.booking_id"), nullable=False)
+
+    member_id = Column(Integer, ForeignKey("members.member_id"), nullable=False)
+
+    booking = relationship("Booking", back_populates="registrations")
 
 
 # -------------------
@@ -103,10 +124,9 @@ class Booking(Base):
 class Equipment(Base):
     __tablename__ = "equipment"
 
-    id = Column(Integer, primary_key=True)
-    TYPE = Column(String)
-    STATUS = Column(String)
-    COUNT = Column(Integer)
+    equipment_id = Column(Integer, primary_key=True)
+    type = Column(String)
+    status = Column(String)
 
-    R_ID = Column(Integer, ForeignKey("rooms.R_ID"))
+    room_id = Column(Integer, ForeignKey("rooms.room_id"))
     room = relationship("Room", back_populates="equipment")
