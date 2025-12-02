@@ -1,5 +1,9 @@
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+
 from sqlalchemy.orm import Session
-from models import Trainer, Member
+from models.models import Trainer, Member
 from datetime import time
 
 # -------------------
@@ -33,7 +37,7 @@ def lookup_member(session: Session, member_id: int):
     return {
         "member_id": member.member_id,
         "goal": member.goal,
-        "health_metric_note": member.health_metric,
-        "class_id": member.class_id
+        "health_metric": member.health_metric,
+        "classes": member.attending_classes
     }
 
